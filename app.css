@@ -1,0 +1,13 @@
+@import "tailwindcss";
+
+/* Custom premium design tokens */
+@theme {
+  --color-primary: #1d4ed8; /* Blue 700 */
+  --color-secondary: #0f172a; /* Slate 900 */
+  --color-accent: #f59e0b; /* Amber 500 */
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: #f8fafc;
+}

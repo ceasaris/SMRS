@@ -1,0 +1,649 @@
+@page "/apply/{ListingId:int?}"
+@rendermode InteractiveServer
+@using Microsoft.EntityFrameworkCore
+@using SMRS.Web.Data
+@inject SmrsDbContext Db
+@inject NavigationManager Nav
+
+<PageTitle>Apply - Saint Mary's Recruitment System</PageTitle>
+
+<div class="max-w-4xl mx-auto px-4 py-12">
+    @if (IsInvalidToken)
+    {
+        <div class="bg-red-50 text-red-800 rounded-2xl p-8 text-center border border-red-200 shadow-sm">
+            <svg class="mx-auto h-16 w-16 text-red-500 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <h2 class="text-2xl font-bold mb-2">Invalid or Expired Link</h2>
+            <p class="text-red-700">The verification link you used is invalid, has already been used, or has expired. Please request a new link.</p>
+            <a href="/" class="mt-6 inline-block bg-red-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-red-700 transition-colors">Return to Jobs</a>
+        </div>
+    }
+    else if (Success)
+    {
+        <div class="bg-green-50 text-green-800 rounded-2xl p-8 text-center border border-green-200 shadow-sm">
+            <svg class="mx-auto h-16 w-16 text-green-500 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <h2 class="text-2xl font-bold mb-2">Application Submitted!</h2>
+            <p class="text-green-700">Thank you for applying. Our HR team will review your comprehensive application shortly.</p>
+            <a href="/" class="mt-6 inline-block bg-green-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-green-700 transition-colors">Return to Jobs</a>
+        </div>
+    }
+    else
+    {
+        <div class="bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-200">
+            <div class="bg-slate-900 px-8 py-10 text-white relative overflow-hidden">
+                <div class="absolute top-0 right-0 -mt-4 -mr-4 w-32 h-32 bg-blue-500 rounded-full mix-blend-multiply filter blur-2xl opacity-50"></div>
+                <h1 class="text-3xl font-bold mb-2 relative z-10">Application Wizard</h1>
+                <p class="text-slate-300 relative z-10">
+                    @(Listing != null ? $"Applying for {Listing.Position?.PositionName}" : "General Application")
+                </p>
+                
+                <!-- Progress Bar -->
+                <div class="mt-8 relative z-10">
+                    <div class="flex justify-between mb-2">
+                        @for (int i = 1; i <= TotalSteps; i++)
+                        {
+                            <span class="text-xs font-semibold @(Step >= i ? "text-blue-400" : "text-slate-500")">Step @i</span>
+                        }
+                    </div>
+                    <div class="w-full bg-slate-700 rounded-full h-2">
+                        <div class="bg-blue-500 h-2 rounded-full transition-all duration-300" style="width: @((Step * 100) / TotalSteps)%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-8">
+                @if (Step == 1)
+                {
+                    <h3 class="text-xl font-bold text-slate-800 mb-6">1. Personal Information</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Title</label>
+                            <select @bind="Model.Title" class="w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 bg-slate-50 p-2.5 border">
+                                <option value="Mr.">Mr.</option>
+                                <option value="Mrs.">Mrs.</option>
+                                <option value="Miss">Miss</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">First Name</label>
+                            <input type="text" @bind="Model.FirstName" class="w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 bg-slate-50 p-2.5 border" />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Family Name</label>
+                            <input type="text" @bind="Model.FamilyName" class="w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 bg-slate-50 p-2.5 border" />
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Father's Name</label>
+                            <input type="text" @bind="Model.FatherName" class="w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 bg-slate-50 p-2.5 border" />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Date of Birth</label>
+                            <input type="date" @bind="Model.BirthDate" class="w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 bg-slate-50 p-2.5 border" />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Nationality</label>
+                            <input type="text" @bind="Model.Nationality" class="w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 bg-slate-50 p-2.5 border" />
+                        </div>
+
+                        <div class="md:col-span-3">
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Full Address</label>
+                            <input type="text" @bind="Model.Address" class="w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 bg-slate-50 p-2.5 border" />
+                        </div>
+
+                        <div class="md:col-span-1">
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Mobile Phone No.</label>
+                            <input type="tel" @bind="Model.MobilePhone" class="w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 bg-slate-50 p-2.5 border" />
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Email Address</label>
+                            <input type="email" @bind="Model.Email" readonly class="w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 bg-slate-200 text-slate-500 cursor-not-allowed p-2.5 border" />
+                            <p class="text-xs text-slate-500 mt-1">Verified email address cannot be changed.</p>
+                        </div>
+
+                        <div class="md:col-span-3 border-t border-slate-200 pt-4 mt-2">
+                            <h4 class="font-medium text-slate-800 mb-4">Marital Status & Family</h4>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Marital Status</label>
+                            <select @bind="Model.MaritalStatus" class="w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 bg-slate-50 p-2.5 border">
+                                <option value="Single">Single</option>
+                                <option value="Married">Married</option>
+                                <option value="Divorced">Divorced</option>
+                                <option value="Widowed">Widowed</option>
+                                <option value="Separated">Separated</option>
+                            </select>
+                        </div>
+
+                        @if (Model.MaritalStatus == "Married" && Model.Title == "Mrs.")
+                        {
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1">Maiden Name</label>
+                                <input type="text" @bind="Model.MaidenName" class="w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 bg-slate-50 p-2.5 border" />
+                            </div>
+                        }
+
+                        @if (Model.MaritalStatus == "Married")
+                        {
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1">Spouse's Occupation</label>
+                                <input type="text" @bind="Model.SpouseOccupation" class="w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 bg-slate-50 p-2.5 border" />
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1">Spouse Work Country</label>
+                                <input type="text" @bind="Model.SpouseWorkCountry" class="w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 bg-slate-50 p-2.5 border" />
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1">Spouse Work City</label>
+                                <input type="text" @bind="Model.SpouseWorkCity" class="w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 bg-slate-50 p-2.5 border" />
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1">Number of Children</label>
+                                <input type="number" @bind="Model.NumberOfChildren" class="w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 bg-slate-50 p-2.5 border" />
+                            </div>
+                        }
+
+                        <div class="md:col-span-3">
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Self Description</label>
+                            <textarea @bind="Model.SelfDescription" rows="3" class="w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 bg-slate-50 p-2.5 border" placeholder="Tell us briefly about yourself..."></textarea>
+                        </div>
+                    </div>
+                }
+                else if (Step == 2)
+                {
+                    <h3 class="text-xl font-bold text-slate-800 mb-6">2. Position of Interest</h3>
+                    
+                    <div class="grid grid-cols-1 gap-8">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-3">Which roles are you interested in?</label>
+                            <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                @foreach (var role in JobRoles)
+                                {
+                                    <label class="flex items-center p-3 rounded-xl border border-slate-200 bg-slate-50 cursor-pointer hover:bg-slate-100 transition-colors">
+                                        <input type="checkbox" class="h-4 w-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500" 
+                                               @onchange='(e) => ToggleRole(role.JobRoleName, (bool)e.Value!)' />
+                                        <span class="ml-3 text-sm font-medium text-slate-700">@role.JobRoleName</span>
+                                    </label>
+                                }
+                            </div>
+                        </div>
+
+                        @if (SelectedPositions.Any())
+                        {
+                            <div class="space-y-6">
+                                <h4 class="font-semibold text-slate-800 flex items-center gap-2">
+                                    <svg class="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+                                    Position Details
+                                </h4>
+                                @foreach (var sel in SelectedPositions)
+                                {
+                                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Role Type</label>
+                                                <select @bind="sel.JobRoleId" class="w-full rounded-lg border-slate-300 text-sm p-2 border bg-slate-50">
+                                                    <option value="">Select Role...</option>
+                                                    @foreach (var r in JobRoles) { <option value="@r.JobRoleId">@r.JobRoleName</option> }
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Department (If applicable)</label>
+                                                <select @bind="sel.DepartmentId" class="w-full rounded-lg border-slate-300 text-sm p-2 border bg-slate-50">
+                                                    <option value="">Select Department...</option>
+                                                    @foreach (var d in Departments) { <option value="@d.DepartmentId">@d.DepartmentName</option> }
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Specific Position</label>
+                                                <select @bind="sel.PositionId" class="w-full rounded-lg border-slate-300 text-sm p-2 border bg-slate-50">
+                                                    <option value="">Select Position...</option>
+                                                    @foreach (var p in AllPositions.Where(x => x.JobRoleId == sel.JobRoleId && (sel.DepartmentId == null || x.DepartmentId == sel.DepartmentId))) 
+                                                    { 
+                                                        <option value="@p.PositionId">@p.PositionName</option> 
+                                                    }
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Level / Subject</label>
+                                                <div class="flex gap-2">
+                                                    <select @bind="sel.LevelId" class="w-1/2 rounded-lg border-slate-300 text-sm p-2 border bg-slate-50">
+                                                        <option value="">Level...</option>
+                                                        @foreach (var l in Levels.Where(x => x.JobRoleId == sel.JobRoleId)) { <option value="@l.LevelId">@l.LevelName</option> }
+                                                    </select>
+                                                    <select @bind="sel.SubjectId" class="w-1/2 rounded-lg border-slate-300 text-sm p-2 border bg-slate-50">
+                                                        <option value="">Subject...</option>
+                                                        @foreach (var s in Subjects) { <option value="@s.SubjectId">@s.SubjectName</option> }
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                                <button type="button" @onclick="() => SelectedPositions.Add(new AppPositionSelection())" class="text-sm font-semibold text-blue-600 hover:text-blue-800">+ Add Another Position</button>
+                            </div>
+                        }
+
+                        <div class="space-y-6 pt-6 border-t border-slate-100">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 mb-1">Employment Type</label>
+                                    <select @bind="Interest.EmploymentType" class="w-full rounded-lg border-slate-300 p-2.5 border bg-slate-50 shadow-sm">
+                                        <option value="Full Time">Full Time</option>
+                                        <option value="Part Time">Part Time</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 mb-1">Expected Salary</label>
+                                    <input type="text" @bind="Interest.ExpectedSalary" class="w-full rounded-lg border-slate-300 p-2.5 border bg-slate-50 shadow-sm" placeholder="USD / LBP..." />
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 mb-1">Availability Date</label>
+                                    <input type="date" @bind="Interest.AvailabilityDate" class="w-full rounded-lg border-slate-300 p-2.5 border bg-slate-50 shadow-sm" />
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 mb-1">Applied to other schools?</label>
+                                    <select @bind="Interest.AppliedOther" class="w-full rounded-lg border-slate-300 p-2.5 border bg-slate-50 shadow-sm">
+                                        <option value="No">No</option>
+                                        <option value="Yes">Yes</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            @if (Interest.AppliedOther == "Yes")
+                            {
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 mb-1">Specify Other Schools</label>
+                                    <input type="text" @bind="Interest.OtherSchoolDetails" class="w-full rounded-lg border-slate-300 p-2.5 border bg-slate-50 shadow-sm" />
+                                </div>
+                            }
+
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1">Educational Philosophy</label>
+                                <textarea @bind="Interest.EducationalPhilosophy" rows="2" class="w-full rounded-lg border-slate-300 p-2.5 border bg-slate-50 shadow-sm" placeholder="Your approach to education..."></textarea>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 mb-1">Reason for choosing SMOC</label>
+                                    <textarea @bind="Interest.ReasonSchool" rows="3" class="w-full rounded-lg border-slate-300 p-2.5 border bg-slate-50 shadow-sm" placeholder="Why would you like to work here?"></textarea>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 mb-1">Contribution & Commitment</label>
+                                    <textarea @bind="Interest.Commitment" rows="3" class="w-full rounded-lg border-slate-300 p-2.5 border bg-slate-50 shadow-sm" placeholder="What can you contribute to the school?"></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+                else if (Step == 3)
+                {
+                    <h3 class="text-xl font-bold text-slate-800 mb-6">3. Children Details</h3>
+                    <p class="text-sm text-slate-500 mb-4">Please list your children, if any.</p>
+                    
+                    @foreach (var child in Children)
+                    {
+                        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-4 relative">
+                            <button @onclick="() => Children.Remove(child)" class="absolute top-2 right-2 text-red-500 hover:text-red-700 p-2">✕</button>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div>
+                                    <label class="block text-xs font-medium text-slate-700 mb-1">Name</label>
+                                    <input type="text" @bind="child.ChildName" class="w-full rounded-md border-slate-300 text-sm p-2 border" />
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-slate-700 mb-1">Age</label>
+                                    <input type="number" @bind="child.ChildAge" class="w-full rounded-md border-slate-300 text-sm p-2 border" />
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-slate-700 mb-1">School</label>
+                                    <input type="text" @bind="child.ChildSchool" class="w-full rounded-md border-slate-300 text-sm p-2 border" />
+                                </div>
+                            </div>
+                        </div>
+                    }
+                    <button @onclick="() => Children.Add(new AppChild())" class="text-sm font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                        <span>+ Add Child</span>
+                    </button>
+                }
+                else if (Step == 4)
+                {
+                    <h3 class="text-xl font-bold text-slate-800 mb-6">4. Education Background</h3>
+                    
+                    @foreach (var edu in Educations)
+                    {
+                        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-4 relative">
+                            <button @onclick="() => Educations.Remove(edu)" class="absolute top-2 right-2 text-red-500 hover:text-red-700 p-2">✕</button>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="md:col-span-2">
+                                    <label class="block text-xs font-medium text-slate-700 mb-1">University / Institution</label>
+                                    <input type="text" @bind="edu.UniversityName" class="w-full rounded-md border-slate-300 text-sm p-2 border" />
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-slate-700 mb-1">Degree</label>
+                                    <input type="text" @bind="edu.Degree" class="w-full rounded-md border-slate-300 text-sm p-2 border" />
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-slate-700 mb-1">Major</label>
+                                    <input type="text" @bind="edu.Major" class="w-full rounded-md border-slate-300 text-sm p-2 border" />
+                                </div>
+                            </div>
+                        </div>
+                    }
+                    <button @onclick="() => Educations.Add(new AppEducation())" class="text-sm font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                        <span>+ Add Education</span>
+                    </button>
+                }
+                else if (Step == 5)
+                {
+                    <h3 class="text-xl font-bold text-slate-800 mb-6">5. Work Experience</h3>
+                    
+                    @foreach (var exp in WorkExperiences)
+                    {
+                        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-4 relative">
+                            <button @onclick="() => WorkExperiences.Remove(exp)" class="absolute top-2 right-2 text-red-500 hover:text-red-700 p-2">✕</button>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs font-medium text-slate-700 mb-1">Institution</label>
+                                    <input type="text" @bind="exp.Institution" class="w-full rounded-md border-slate-300 text-sm p-2 border" />
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-slate-700 mb-1">Position Held</label>
+                                    <input type="text" @bind="exp.PositionHeld" class="w-full rounded-md border-slate-300 text-sm p-2 border" />
+                                </div>
+                                <div class="md:col-span-2">
+                                    <label class="block text-xs font-medium text-slate-700 mb-1">Reason for Change</label>
+                                    <input type="text" @bind="exp.ReasonChange" class="w-full rounded-md border-slate-300 text-sm p-2 border" />
+                                </div>
+                            </div>
+                        </div>
+                    }
+                    <button @onclick="() => WorkExperiences.Add(new AppWorkExperience())" class="text-sm font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                        <span>+ Add Experience</span>
+                    </button>
+                }
+                else if (Step == 6)
+                {
+                    <h3 class="text-xl font-bold text-slate-800 mb-6">6. Skills & Literacy</h3>
+                    <div class="grid grid-cols-1 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Computer Literacy</label>
+                            <textarea @bind="EdTech.ComputerLiteracy" rows="2" class="w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 bg-slate-50 p-2.5 border" placeholder="Describe your computer skills..."></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">EdTech Literacy</label>
+                            <textarea @bind="EdTech.EdTechLiteracy" rows="2" class="w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 bg-slate-50 p-2.5 border" placeholder="Experience with learning management systems, smartboards, etc..."></textarea>
+                        </div>
+                    </div>
+                }
+                else if (Step == 7)
+                {
+                    <h3 class="text-xl font-bold text-slate-800 mb-6">7. References</h3>
+                    
+                    @foreach (var r in References)
+                    {
+                        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-4 relative">
+                            <button @onclick="() => References.Remove(r)" class="absolute top-2 right-2 text-red-500 hover:text-red-700 p-2">✕</button>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs font-medium text-slate-700 mb-1">First Name</label>
+                                    <input type="text" @bind="r.FirstName" class="w-full rounded-md border-slate-300 text-sm p-2 border" />
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-slate-700 mb-1">Last Name</label>
+                                    <input type="text" @bind="r.LastName" class="w-full rounded-md border-slate-300 text-sm p-2 border" />
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-slate-700 mb-1">Mobile</label>
+                                    <input type="text" @bind="r.Mobile" class="w-full rounded-md border-slate-300 text-sm p-2 border" />
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-slate-700 mb-1">Email</label>
+                                    <input type="email" @bind="r.RefEmail" class="w-full rounded-md border-slate-300 text-sm p-2 border" />
+                                </div>
+                                <div class="md:col-span-2">
+                                    <label class="block text-xs font-medium text-slate-700 mb-1">Position</label>
+                                    <input type="text" @bind="r.Position" class="w-full rounded-md border-slate-300 text-sm p-2 border" />
+                                </div>
+                            </div>
+                        </div>
+                    }
+                    <button @onclick="() => References.Add(new AppReference())" class="text-sm font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                        <span>+ Add Reference</span>
+                    </button>
+                }
+                else if (Step == 8)
+                {
+                    <h3 class="text-xl font-bold text-slate-800 mb-6">8. Review & Submit</h3>
+                    <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200 text-sm text-slate-700 space-y-4">
+                        <p><strong>Name:</strong> @Model.FirstName @Model.FamilyName</p>
+                        <p><strong>Email:</strong> @Model.Email</p>
+                        <p><strong>Positions:</strong> @SelectedPositions.Count selected</p>
+                        <p><strong>Educations:</strong> @Educations.Count added</p>
+                        <p><strong>Experiences:</strong> @WorkExperiences.Count added</p>
+                        <p><strong>References:</strong> @References.Count added</p>
+                        <div class="mt-4 p-4 bg-blue-50 text-blue-800 rounded-lg border border-blue-100">
+                            By clicking submit, you confirm that the information provided is accurate and complete to the best of your knowledge.
+                        </div>
+                    </div>
+                }
+
+                <div class="pt-8 mt-8 border-t border-slate-200 flex justify-between">
+                    @if (Step > 1)
+                    {
+                        <button type="button" @onclick="PrevStep" class="px-6 py-2.5 bg-slate-100 text-slate-700 rounded-xl font-medium hover:bg-slate-200 transition-colors">
+                            Back
+                        </button>
+                    }
+                    else
+                    {
+                        <div></div>
+                    }
+
+                    @if (Step < TotalSteps)
+                    {
+                        <button type="button" @onclick="NextStep" class="px-6 py-2.5 bg-blue-600 text-white rounded-xl font-medium shadow-md hover:bg-blue-700 transition-colors">
+                            Next Step
+                        </button>
+                    }
+                    else
+                    {
+                        <button type="button" @onclick="SubmitApplication" class="px-8 py-3 bg-green-600 text-white rounded-xl font-medium shadow-lg hover:bg-green-700 hover:shadow-xl transition-all transform hover:-translate-y-0.5">
+                            Submit Application
+                        </button>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public int? ListingId { get; set; }
+    
+    [SupplyParameterFromQuery]
+    public string? Token { get; set; }
+    
+    private Token? ValidToken;
+    private bool IsInvalidToken = false;
+    
+    private PositionListing? Listing;
+    private bool Success = false;
+    
+    private int Step = 1;
+    private int TotalSteps = 8;
+    
+    private AppModel Model = new();
+    private AppPositionInterest Interest = new();
+    private List<AppPositionSelection> SelectedPositions = new();
+    
+    private List<JobRole> JobRoles = new();
+    private List<Level> Levels = new();
+    private List<Subject> Subjects = new();
+    private List<Department> Departments = new();
+    private List<Position> AllPositions = new();
+
+    private List<AppChild> Children = new();
+    private List<AppEducation> Educations = new();
+    private List<AppWorkExperience> WorkExperiences = new();
+    private AppEdTechLiteracy EdTech = new();
+    private List<AppReference> References = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (string.IsNullOrEmpty(Token))
+        {
+            IsInvalidToken = true;
+            return;
+        }
+
+        ValidToken = await Db.Tokens.FirstOrDefaultAsync(t => t.TokenValue == Token && t.ListingId == ListingId);
+
+        if (ValidToken == null || ValidToken.IsUsed || ValidToken.ExpiresAt < DateTime.UtcNow)
+        {
+            IsInvalidToken = true;
+            return;
+        }
+
+        // Prefill Data
+        var nameParts = ValidToken.ApplicantName.Split(' ', 2);
+        Model.FirstName = nameParts.Length > 0 ? nameParts[0] : "";
+        Model.FamilyName = nameParts.Length > 1 ? nameParts[1] : "";
+        Model.Email = ValidToken.ApplicantEmail;
+
+        if (ListingId.HasValue)
+        {
+            Listing = await Db.PositionListings
+                .Include(l => l.Position)
+                .FirstOrDefaultAsync(l => l.ListingId == ListingId.Value);
+        }
+        
+        // Fetch Lookup Data
+        JobRoles = await Db.JobRoles.ToListAsync();
+        Levels = await Db.Levels.ToListAsync();
+        Subjects = await Db.Subjects.ToListAsync();
+        Departments = await Db.Departments.ToListAsync();
+        AllPositions = await Db.Positions.ToListAsync();
+
+        // Add one empty record by default to lists to encourage filling
+        Educations.Add(new AppEducation());
+        WorkExperiences.Add(new AppWorkExperience());
+        
+        // Initialize one position selection
+        SelectedPositions.Add(new AppPositionSelection());
+    }
+
+    private void NextStep() { if (Step < TotalSteps) Step++; }
+    private void PrevStep() { if (Step > 1) Step--; }
+
+    private List<string> selectedRoles = new();
+    private void ToggleRole(string role, bool isChecked)
+    {
+        if (isChecked) { if (!selectedRoles.Contains(role)) selectedRoles.Add(role); }
+        else { selectedRoles.Remove(role); }
+        Interest.ApplyingFor = System.Text.Json.JsonSerializer.Serialize(selectedRoles);
+    }
+
+    private async Task SubmitApplication()
+    {
+        if (ValidToken == null) return;
+        
+        // Mark token as used
+        ValidToken.IsUsed = true;
+        Db.Tokens.Update(ValidToken);
+        
+        var app = new Application
+        {
+            ApplicantEmail = Model.Email,
+            ApplicantName = $"{Model.FirstName} {Model.FamilyName}".Trim(),
+            ListingId = ListingId,
+            Status = "Submitted",
+            SubmittedAt = DateTime.UtcNow,
+            PersonalInfo = new AppPersonalInfo
+            {
+                Title = Model.Title,
+                FirstName = Model.FirstName,
+                FamilyName = Model.FamilyName,
+                FatherName = Model.FatherName,
+                Email = Model.Email,
+                MobilePhone = Model.MobilePhone,
+                Nationality = Model.Nationality,
+                BirthDate = Model.BirthDate,
+                Address = Model.Address,
+                MaritalStatus = Model.MaritalStatus,
+                MaidenName = Model.MaidenName,
+                SpouseOccupation = Model.SpouseOccupation,
+                SpouseWorkCountry = Model.SpouseWorkCountry,
+                SpouseWorkCity = Model.SpouseWorkCity,
+                NumberOfChildren = Model.NumberOfChildren,
+                SelfDescription = Model.SelfDescription
+            },
+            EdTechLiteracy = new AppEdTechLiteracy
+            {
+                ComputerLiteracy = EdTech.ComputerLiteracy,
+                EdTechLiteracy = EdTech.EdTechLiteracy
+            },
+            PositionInterest = new AppPositionInterest
+            {
+                ApplyingFor = Interest.ApplyingFor,
+                EducationalPhilosophy = Interest.EducationalPhilosophy,
+                AppliedOther = Interest.AppliedOther,
+                OtherSchoolDetails = Interest.OtherSchoolDetails,
+                EmploymentType = Interest.EmploymentType,
+                ExpectedSalary = Interest.ExpectedSalary,
+                AvailabilityDate = Interest.AvailabilityDate,
+                ReasonSchool = Interest.ReasonSchool,
+                Commitment = Interest.Commitment
+            }
+        };
+
+        // Filter out empty entries before saving
+        foreach(var c in Children.Where(x => !string.IsNullOrWhiteSpace(x.ChildName)))
+            app.Children.Add(new AppChild { ChildName = c.ChildName, ChildAge = c.ChildAge, ChildSchool = c.ChildSchool });
+
+        foreach(var e in Educations.Where(x => !string.IsNullOrWhiteSpace(x.UniversityName)))
+            app.Educations.Add(new AppEducation { UniversityName = e.UniversityName, Degree = e.Degree, Major = e.Major });
+
+        foreach(var w in WorkExperiences.Where(x => !string.IsNullOrWhiteSpace(x.Institution)))
+            app.WorkExperiences.Add(new AppWorkExperience { Institution = w.Institution, PositionHeld = w.PositionHeld, ReasonChange = w.ReasonChange });
+
+        foreach(var r in References.Where(x => !string.IsNullOrWhiteSpace(x.FirstName)))
+            app.References.Add(new AppReference { FirstName = r.FirstName, LastName = r.LastName, Mobile = r.Mobile, RefEmail = r.RefEmail, Position = r.Position });
+
+        foreach(var s in SelectedPositions.Where(x => x.JobRoleId > 0))
+            app.PositionSelections.Add(new AppPositionSelection 
+            { 
+                JobRoleId = s.JobRoleId, 
+                DepartmentId = s.DepartmentId, 
+                PositionId = s.PositionId,
+                LevelId = s.LevelId,
+                SubjectId = s.SubjectId
+            });
+
+        Db.Applications.Add(app);
+        await Db.SaveChangesAsync();
+        Success = true;
+    }
+
+    class AppModel
+    {
+        public string Title { get; set; } = "Mr.";
+        public string FirstName { get; set; } = "";
+        public string FamilyName { get; set; } = "";
+        public string FatherName { get; set; } = "";
+        public string Email { get; set; } = "";
+        public string MobilePhone { get; set; } = "";
+        public string Nationality { get; set; } = "";
+        public DateTime? BirthDate { get; set; }
+        public string Address { get; set; } = "";
+        public string MaritalStatus { get; set; } = "Single";
+        public string MaidenName { get; set; } = "";
+        public string SpouseOccupation { get; set; } = "";
+        public string SpouseWorkCountry { get; set; } = "";
+        public string SpouseWorkCity { get; set; } = "";
+        public int? NumberOfChildren { get; set; }
+        public string SelfDescription { get; set; } = "";
+    }
+}
